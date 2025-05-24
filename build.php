@@ -75,7 +75,10 @@ function robocopyCopy($src, $dst)
     return count($output);
 }
 
-// Function to encrypt PHP files with AES-256-CBC
+// Function to encrypt PHP files with AES-256-CBC run specific  machine
+// This version uses machineID to ensure the encrypted code runs only on the same machine
+
+/*
 function encryptPhpFile($filePath, $key)
 {
     $originalCode = file_get_contents($filePath);
@@ -101,6 +104,43 @@ if (PHP_SAPI !== 'cli-server') header('Content-Type: text/html; charset=utf-8');
 \$data = substr(\$d, 16);
 \$key = hash('sha256', '$key' . php_uname('n'), true);
 eval("?>".openssl_decrypt(\$data, 'AES-256-CBC', \$key, OPENSSL_RAW_DATA, \$iv));
+__halt_compiler();
+$payload
+PHP;
+
+    file_put_contents($filePath, $loader, LOCK_EX);
+}
+*/
+
+
+
+// Function to encrypt PHP files with AES-256-CBC it run on any machine
+// This version does not use machineID, so it can run on any machine
+
+function encryptPhpFile($filePath, $key)
+{
+    $originalCode = file_get_contents($filePath);
+    if ($originalCode === false) return;
+
+    $iv = random_bytes(16);
+    $finalKey = hash('sha256', $key, true); // removed machineID
+    $encrypted = openssl_encrypt($originalCode, 'AES-256-CBC', $finalKey, OPENSSL_RAW_DATA, $iv);
+    if ($encrypted === false) return;
+
+    $payload = base64_encode($iv . $encrypted);
+    $payload = strtr($payload, '+/=', '-_~');
+
+    // Obfuscated loader
+    $loader = <<<PHP
+<?php
+if(PHP_SAPI!=='cli-server')@header('Content-Type:text/html;charset=utf-8');
+\$x1="strtr";\$x2="substr";\$x3="file_get_contents";\$x4="base64_decode";\$x5="openssl_decrypt";\$x6="hash";\$x7="sha256";
+\$p=\$x1(\$x2(\$x3(__FILE__),__COMPILER_HALT_OFFSET__),"-_~","+/=");
+\$p=\$x4(\$p);
+\$v=\$x2(\$p,0,16);
+\$c=\$x2(\$p,16);
+\$k=\$x6(\$x7,'$key',true);
+@eval("?>".\$x5(\$c,"AES-256-CBC",\$k,OPENSSL_RAW_DATA,\$v));
 __halt_compiler();
 $payload
 PHP;
