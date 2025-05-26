@@ -2,11 +2,63 @@
 
 set_time_limit(300);
 
-$buildDir = __DIR__ . '/build';
+// User function for asking yes/no questions
+function askYesNo(string $question, bool $default = false): bool
+{
+    $answer = trim(fgets(STDIN));
+    return $answer === '' ? $default : strtolower($answer) === 'yes' || strtolower($answer) === 'y';
+}
+
+// Ask for migration inclusion
+echo "Do you want to include migration files? (yes/no): ";
+$includeMigration = askYesNo("");
+
+// Ask for full cache build
+echo "Do you want to enable full cache? (yes/no): ";
+$includeCache = askYesNo("");
+
+// If migration is not included, ask for other file inclusions
+$includeResources = false;
+$includeRoute = false;
+
+if (!$includeCache) {
+    echo "Do you want to include the 'resources' folder? (yes/no): ";
+    $includeResources = askYesNo("");
+
+    echo "Do you want to include the 'routes' folder? (yes/no): ";
+    $includeRoute = askYesNo("");
+}
+
+// Ask for specific device build
+echo "Do you want to build for a specific device? (yes/no): ";
+$includeSpecificDevice = askYesNo("");
+
+
+
+
+
+// Load configuration from JSON file
+if (!file_exists(__DIR__ . '/blaze.json')) {
+    throw new Exception('Configuration file not found.');
+}
+
+// Read and decode the JSON configuration file
+$jsonContent = file_get_contents(__DIR__ . '/blaze.json');
+if ($jsonContent === false) {
+    throw new Exception('Failed to read configuration file.');
+}
+$config = json_decode($jsonContent, true);
+
+
+
+// Define build directories
+$buildDir = __DIR__ . '/' . $config['build']['output_directory'] ?? 'build';
 $coreDir = $buildDir . '/core';
 $publicDir = $buildDir . '/public';
-$sourceDirs = ['app', 'bootstrap', 'config', 'database', 'public', 'routes', 'storage','resources', 'vendor'];
-$files = ['artisan', 'composer.json', 'composer.lock', 'package.json', 'vite.config.js', 'phpunit.xml'];
+$sourceDirs = $config['source']['directories'];
+$files = $config['source']['files'];
+
+
 
 // Function to load environment variables from the .env file
 function loadEnv($envFile = '.env')
@@ -35,22 +87,32 @@ function loadEnv($envFile = '.env')
 $baseKey = loadEnv(); // Get the APP_KEY from the .env file
 
 // Function to run shell commands
-function runCommand($cmd)
+function runCommand($cmd, $cwd = null)
 {
     echo "▶️  $cmd\n";
-    $proc = proc_open($cmd, [
+
+    $descriptorSpec = [
         1 => ['pipe', 'w'],
         2 => ['pipe', 'w'],
-    ], $pipes);
+    ];
+
+    $proc = proc_open($cmd, $descriptorSpec, $pipes, $cwd . '/core');
 
     if (is_resource($proc)) {
-        while (!feof($pipes[1]))
+        while (!feof($pipes[1])) {
             echo fread($pipes[1], 4096);
+        }
         fclose($pipes[1]);
+
+        while (!feof($pipes[2])) {
+            echo fread($pipes[2], 4096);
+        }
         fclose($pipes[2]);
+
         proc_close($proc);
     }
 }
+
 
 // Function to clean the build directory
 function cleanBuild($dir)
@@ -67,6 +129,20 @@ function cleanBuild($dir)
     echo "🧹 Build folder ready.\n";
 }
 
+// Function to delete a directory and its contents
+function deleteDir($dir)
+{
+    if (!is_dir($dir)) return;
+    $it = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($it as $file) {
+        $file->isDir() ? rmdir($file) : unlink($file);
+    }
+    rmdir($dir);
+}
+
 // Function to copy files with robocopy for faster transfer
 function robocopyCopy($src, $dst)
 {
@@ -78,8 +154,8 @@ function robocopyCopy($src, $dst)
 // Function to encrypt PHP files with AES-256-CBC run specific  machine
 // This version uses machineID to ensure the encrypted code runs only on the same machine
 
-/*
-function encryptPhpFile($filePath, $key)
+
+function encryptPhpFileDeviceWise($filePath, $key)
 {
     $originalCode = file_get_contents($filePath);
     if ($originalCode === false)
@@ -110,7 +186,6 @@ PHP;
 
     file_put_contents($filePath, $loader, LOCK_EX);
 }
-*/
 
 
 
@@ -148,15 +223,23 @@ PHP;
     file_put_contents($filePath, $loader, LOCK_EX);
 }
 
+
+
+
 // Encrypt the app folder
-function encryptAppFolderOnly($appPath, $key)
+function encryptAppFolderOnly($appPath, $key, $specificDevice = false)
 {
     $iterator = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($appPath, FilesystemIterator::SKIP_DOTS | FilesystemIterator::FOLLOW_SYMLINKS)
     );
     foreach ($iterator as $file) {
         if (pathinfo($file, PATHINFO_EXTENSION) === 'php' && is_file($file)) {
-            encryptPhpFile($file, $key);
+            if ($specificDevice) {
+                encryptPhpFileDeviceWise($file, $key);
+            } else {
+                encryptPhpFile($file, $key);
+            }
+
             echo "🔐 " . str_replace($appPath . DIRECTORY_SEPARATOR, '', $file) . "\n";
         }
     }
@@ -166,21 +249,10 @@ function encryptAppFolderOnly($appPath, $key)
 // STEP 1: Clean
 cleanBuild($buildDir);
 
-// STEP 2: Laravel optimize (optimized for faster execution)
-echo "🧹 Optimizing Laravel...\n";
-// runCommand("composer install --prefer-dist --no-dev --no-scripts --optimize-autoloader --classmap-authoritative --no-progress --no-interaction");
-// runCommand("php artisan config:cache");
-// runCommand("php artisan route:cache");
-// runCommand("php artisan view:cache");
-// runCommand("php artisan event:cache");
-// runCommand("php artisan optimize");
-runCommand("composer dump-autoload --optimize");
-//  runCommand("composer install  --optimize-autoloader");
-
 
 
 // STEP 3: Copy Laravel core files (using parallelization for faster processing)
-echo "📁 Copying Laravel core...\n";
+echo "🔄 Syncing core files...\n";
 $totalFiles = 0;
 foreach ($sourceDirs as $dir) {
     $src = __DIR__ . "/$dir";
@@ -195,7 +267,7 @@ foreach ($sourceDirs as $dir) {
 }
 
 // STEP 4: Copy root files
-echo "📄 Copying root files...\n";
+echo "🚀 Preparing root files...\n";
 foreach ($files as $file) {
     $src = __DIR__ . "/$file";
     $dst = "$coreDir/$file";
@@ -264,7 +336,6 @@ if ($laravelVersion !== 'Unknown' && version_compare($laravelVersion, '11.0.0', 
     \$response = \$kernel->handle(\$request = Request::capture())->send();
     \$kernel->terminate(\$request, \$response);
     PHP;
-
 }
 
 
@@ -291,9 +362,61 @@ file_put_contents("$buildDir/.htaccess", $htaccess, LOCK_EX);
 $totalFiles++;
 echo "✅ .htaccess created.\n";
 
-// STEP 8: Encrypt app folder only
+// STEP 8: Laravel optimize (optimized for faster execution)
+echo "🧹 Optimizing Laravel...\n";
+ runCommand("composer install --prefer-dist --no-dev --no-scripts --optimize-autoloader --classmap-authoritative --no-progress --no-interaction", $buildDir);
+runCommand("php artisan optimize:clear", $buildDir); // ✅ Clears config, route, view, event caches
+
+if ($includeCache) {
+    runCommand("php artisan config:cache", $buildDir);
+    runCommand("php artisan route:cache", $buildDir);
+    runCommand("php artisan view:cache", $buildDir);
+    runCommand("php artisan event:cache", $buildDir);
+    runCommand("php artisan optimize", $buildDir);
+
+    foreach (['resources', 'routes'] as $folder) {
+        $path =  $buildDir . "/core/$folder";
+    
+        if (is_dir($path)) {
+            echo "🗑️ Removing $folder...\n";
+            deleteDir($path);
+        }
+    }
+} if (!$includeResources) {
+    runCommand("php artisan view:cache", $buildDir);
+    runCommand("php artisan event:cache", $buildDir);
+    foreach (['resources'] as $folder) {
+        $path =  $buildDir . "/core/$folder";
+        if (is_dir($path)) {
+            echo "🗑️ Removing $folder...\n";
+            deleteDir($path);
+        }
+    }
+} if (!$includeRoute) {
+    runCommand("php artisan route:cache", $buildDir);
+    foreach (['routes'] as $folder) {
+        $path =  $buildDir . "/core/$folder";
+        if (is_dir($path)) {
+            echo "🗑️ Removing $folder...\n";
+            deleteDir($path);
+        }
+    }
+}
+if (!$includeMigration) {
+    // Remove migration files if not included
+    $migrationPath = $buildDir."/core/database/migrations";
+    if (is_dir($migrationPath)) {
+        echo "🗑️ Removing migrations...\n";
+        deleteDir($migrationPath);
+    }
+}
+
+runCommand("composer dump-autoload --optimize", $buildDir);
+
+
+// STEP 9: Encrypt app folder only
 echo "🔐 Encrypting app folder...\n";
-encryptAppFolderOnly("$coreDir/app", hash('sha256', $baseKey));
+encryptAppFolderOnly("$coreDir/app", hash('sha256', $baseKey), $includeSpecificDevice);
 
 // FINAL REPORT
 echo "\n🎉 Build Complete!\n";

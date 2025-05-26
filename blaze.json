@@ -1,0 +1,39 @@
+{
+    "name": "laravel-app",
+    "version": "1.0.0",
+    "description": "Build configuration for Laravel application",
+    "source": {
+        "directories": [
+            "app",
+            "bootstrap",
+            "config",
+            "database",
+            "public",
+            "routes",
+            "storage",
+            "resources",
+            "vendor"
+        ],
+        "files": [
+            "artisan",
+            "composer.json",
+            "composer.lock",
+            "package.json",
+            "vite.config.js",
+            "phpunit.xml",
+            ".env"
+        ]
+    },
+    "build": {
+        "output_directory": "build",
+        "optimize": true,
+        "include_vendor": true,
+        "encrypt_app_folder": false,
+        "loader": {
+            "index": "index.php",
+            "htaccess": true
+        }
+    },
+    "author": "Akram Hossain Tuhin",
+    "license": "MIT"
+}
