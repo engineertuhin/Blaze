@@ -350,21 +350,61 @@ $htaccess = <<<HTACCESS
 <IfModule mod_rewrite.c>
     RewriteEngine On
 
-    # Force everything through index.php
+    # Ensure everything is routed through the public directory
+    RewriteCond %{REQUEST_URI} !^/core/public/
+    RewriteRule ^(.*)$ core/public/$1 [L]
+
+    # Force everything through index.php for non-existent files or directories
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteRule ^ index.php [L]
+
+    # Redirect WWW to non-WWW (Optional, remove if not required)
+    RewriteCond %{HTTP_HOST} ^www\.(.*)$ [NC]
+    RewriteRule ^ http://%1%{REQUEST_URI} [L,R=301]
+
+    # Force HTTPS (Optional, remove if not required)
+    RewriteCond %{HTTPS} off
+    RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+    # Prevent directory listing (Security)
+    Options -Indexes
+
+    # Set expiration for static content (Improve caching)
+    <FilesMatch "\.(jpg|jpeg|png|gif|css|js|ico|pdf|txt|html)$">
+        ExpiresActive On
+        ExpiresDefault "access plus 1 year"
+    </FilesMatch>
+
+    # Leverage browser caching for static content (Speed up page loading)
+    <IfModule mod_headers.c>
+        <FilesMatch "\.(jpg|jpeg|png|gif|css|js|ico|pdf|txt|html)$">
+            Header set Cache-Control "max-age=31536000, public"
+        </FilesMatch>
+    </IfModule>
+
+    # Block access to sensitive files (Security)
+    <FilesMatch "(^\.|wp-config.php|\.htaccess|\.git)">
+        Order Deny,Allow
+        Deny from all
+    </FilesMatch>
+
 </IfModule>
+
 
 
 HTACCESS;
 file_put_contents("$buildDir/.htaccess", $htaccess, LOCK_EX);
 $totalFiles++;
 echo "✅ .htaccess created.\n";
+//runCommand("composer dump-autoload --optimize", $buildDir);
 
 // STEP 8: Laravel optimize (optimized for faster execution)
 echo "🧹 Optimizing Laravel...\n";
- runCommand("composer install --prefer-dist --no-dev --no-scripts --optimize-autoloader --classmap-authoritative --no-progress --no-interaction", $buildDir);
+runCommand("composer install --prefer-dist --no-dev --optimize-autoloader --no-progress --no-interaction", $buildDir);
+
+
+echo "🧹 Clearing the application cache \n";
 runCommand("php artisan optimize:clear", $buildDir); // ✅ Clears config, route, view, event caches
 
 if ($includeCache) {
@@ -373,16 +413,16 @@ if ($includeCache) {
     runCommand("php artisan view:cache", $buildDir);
     runCommand("php artisan event:cache", $buildDir);
     runCommand("php artisan optimize", $buildDir);
-
     foreach (['resources', 'routes'] as $folder) {
         $path =  $buildDir . "/core/$folder";
-    
+
         if (is_dir($path)) {
             echo "🗑️ Removing $folder...\n";
             deleteDir($path);
         }
     }
-} if (!$includeResources) {
+}
+if (!$includeCache && !$includeResources) {
     runCommand("php artisan view:cache", $buildDir);
     runCommand("php artisan event:cache", $buildDir);
     foreach (['resources'] as $folder) {
@@ -392,7 +432,8 @@ if ($includeCache) {
             deleteDir($path);
         }
     }
-} if (!$includeRoute) {
+}
+if (!$includeCache && !$includeRoute) {
     runCommand("php artisan route:cache", $buildDir);
     foreach (['routes'] as $folder) {
         $path =  $buildDir . "/core/$folder";
@@ -404,14 +445,18 @@ if ($includeCache) {
 }
 if (!$includeMigration) {
     // Remove migration files if not included
-    $migrationPath = $buildDir."/core/database/migrations";
+    $migrationPath = $buildDir . "/core/database/migrations";
     if (is_dir($migrationPath)) {
         echo "🗑️ Removing migrations...\n";
         deleteDir($migrationPath);
     }
 }
 
-runCommand("composer dump-autoload --optimize", $buildDir);
+
+
+
+
+
 
 
 // STEP 9: Encrypt app folder only
