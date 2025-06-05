@@ -15,13 +15,13 @@
     },
     "autoload": {
         "psr-4": {
-            "Blaze\\Builder\\": "src/"
+            "LaravelBlaze\\Builder\\": "src/"
         }
     },
     "extra": {
         "laravel": {
             "providers": [
-                "Blaze\\Builder\\BlazeServiceProvider"
+                "LaravelBlaze\\Builder\\BlazeServiceProvider"
             ]
         }
     },

@@ -1,7 +1,6 @@
 <?php
 
-
-namespace Blaze\Builder\Commands;
+namespace LaravelBlaze\Builder\Commands;
 
 use Illuminate\Console\Command;
 use Blaze\Builder\Helpers\Runner;
