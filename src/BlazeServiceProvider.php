@@ -1,7 +1,7 @@
 <?php
 
 
-namespace LaravelBlaze\Builder\Commands;
+namespace LaravelBlaze\Builder;
 
 use Illuminate\Console\Command;
 
