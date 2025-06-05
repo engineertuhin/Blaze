@@ -1,19 +1,25 @@
 <?php
 
-
 namespace LaravelBlaze\Builder;
 
-use Illuminate\Console\Command;
+use Illuminate\Support\ServiceProvider;
+use LaravelBlaze\Builder\Commands\BuildCommand;
 
-class BuildCommand extends Command
+class BlazeServiceProvider extends ServiceProvider
 {
-    protected $signature = 'build';
-    protected $description = 'Run the Laravel build script';
-
-    public function handle()
+    public function register()
     {
-        $this->info("🚀 Running build script...");
-        require base_path('vendor/blaze/builder/build.php');
-        $this->info("✅ Build complete.");
+        // Register the command
+        $this->commands([
+            BuildCommand::class,
+        ]);
+    }
+
+    public function boot()
+    {
+        // Publish blaze.json to project root
+        $this->publishes([
+            __DIR__ . '/../blaze.json' => base_path('blaze.json'),
+        ], 'blaze-config');
     }
 }
