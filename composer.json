@@ -10,6 +10,9 @@
             "email": "tuhin1191@gmail.com"
         }
     ],
+    "require": {
+        "php": ">=7.4"
+    },
     "autoload": {
         "psr-4": {
             "Blaze\\Builder\\": "src/"
