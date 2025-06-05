@@ -1,12 +1,13 @@
 <?php
 
-namespace Blaze\Builder\Commands;
+
+namespace LaravelBlaze\Builder;
 
 use Illuminate\Console\Command;
 
 class BuildCommand extends Command
 {
-    protected $signature = 'blaze:build';
+    protected $signature = 'build';
     protected $description = 'Run the Laravel build script';
 
     public function handle()
