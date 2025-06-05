@@ -19,7 +19,7 @@ class BlazeServiceProvider extends ServiceProvider
     {
         // Publish blaze.json to project root
         $this->publishes([
-            __DIR__ . '/../blaze.json' => base_path('blaze.json'),
+            base_path('vendor/laravel-blaze/builder/blaze.json') => base_path('blaze.json'),
         ], 'blaze-config');
     }
 }
