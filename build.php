@@ -1,6 +1,6 @@
 <?php
 
-set_time_limit(300);
+set_time_limit(900);
 
 // User function for asking yes/no questions
 function askYesNo(string $question, bool $default = false): bool
@@ -10,24 +10,27 @@ function askYesNo(string $question, bool $default = false): bool
 }
 
 // Ask for migration inclusion
-echo "Do you want to include migration files? (yes/no): ";
-$includeMigration = askYesNo("");
+// echo "Do you want to include migration files? (yes/no): ";
+// $includeMigration = askYesNo("");
 
 // Ask for full cache build
-echo "Do you want to enable full cache? (yes/no): ";
-$includeCache = askYesNo("");
+// echo "Do you want to enable full cache? (yes/no): ";
+// $includeCache = askYesNo("");
+
+$includeCache = false;
 
 // If migration is not included, ask for other file inclusions
-$includeResources = false;
-$includeRoute = false;
+$includeResources = true;
+$includeRoute = true;
 
-if (!$includeCache) {
-    echo "Do you want to include the 'resources' folder? (yes/no): ";
+/*if (!$includeCache) {
+echo "Do you want to include the 'resources' folder? (yes/no): ";
     $includeResources = askYesNo("");
 
     echo "Do you want to include the 'routes' folder? (yes/no): ";
     $includeRoute = askYesNo("");
 }
+    */
 
 // Ask for specific device build
 echo "Do you want to build for a specific device? (yes/no): ";
@@ -55,8 +58,8 @@ $config = json_decode($jsonContent, true);
 $buildDir = __DIR__ . '/' . $config['build']['output_directory'] ?? 'build';
 $coreDir = $buildDir . '/core';
 $publicDir = $buildDir . '/public';
-$sourceDirs = $config['source']['directories'];
-$files = $config['source']['files'];
+$sourceDirs = __DIR__ . '/' . $config['source']['directories'];
+$files = __DIR__ . '/' . $config['source']['files'];
 
 
 
