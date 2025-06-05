@@ -1,7 +1,7 @@
 {
     "name": "laravel-blaze/builder",
     "description": "Blaze Laravel Builder - A smart build system for Laravel apps",
-    "version": "1.0.7",
+    "version": "1.0.8",
     "type": "library",
     "license": "MIT",
     "authors": [
