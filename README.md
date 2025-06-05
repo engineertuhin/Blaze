@@ -147,11 +147,9 @@ ASSET_URL=https://cdn.mydomain.com/public
 
 ### Example: Updating Build Script
 
-Edit `config/blaze.php`:
+Edit `blaze.json`:
 
-```php
-'build_script' => 'npm run prod', // or 'npm run build'
-```
+
 
 ---
 
