@@ -12,12 +12,13 @@ function askYesNo(string $question, bool $default = false): bool
 // Ask for migration inclusion
 // echo "Do you want to include migration files? (yes/no): ";
 // $includeMigration = askYesNo("");
+$includeMigration=true;
 
 // Ask for full cache build
 // echo "Do you want to enable full cache? (yes/no): ";
 // $includeCache = askYesNo("");
 
-$includeCache = false;
+$includeCache=false;
 
 // If migration is not included, ask for other file inclusions
 $includeResources = true;
@@ -37,16 +38,16 @@ echo "Do you want to build for a specific device? (yes/no): ";
 $includeSpecificDevice = askYesNo("");
 
 
-
+$projectRoot = dirname(dirname(dirname(__DIR__)));
 
 
 // Load configuration from JSON file
-if (!file_exists(__DIR__ . '/blaze.json')) {
+if (!file_exists($projectRoot . '/blaze.json')) {
     throw new Exception('Configuration file not found.');
 }
 
 // Read and decode the JSON configuration file
-$jsonContent = file_get_contents(__DIR__ . '/blaze.json');
+$jsonContent = file_get_contents($projectRoot . '/blaze.json');
 if ($jsonContent === false) {
     throw new Exception('Failed to read configuration file.');
 }
@@ -55,11 +56,11 @@ $config = json_decode($jsonContent, true);
 
 
 // Define build directories
-$buildDir = __DIR__ . '/' . $config['build']['output_directory'] ?? 'build';
+$buildDir = $projectRoot . '/' . $config['build']['output_directory'] ?? 'build';
 $coreDir = $buildDir . '/core';
 $publicDir = $buildDir . '/public';
-$sourceDirs = __DIR__ . '/' . $config['source']['directories'];
-$files = __DIR__ . '/' . $config['source']['files'];
+$sourceDirs = $config['source']['directories'];
+$files = $config['source']['files'];
 
 
 
@@ -258,7 +259,7 @@ cleanBuild($buildDir);
 echo "🔄 Syncing core files...\n";
 $totalFiles = 0;
 foreach ($sourceDirs as $dir) {
-    $src = __DIR__ . "/$dir";
+    $src = $projectRoot . "/$dir";
     $dst = "$coreDir/$dir";
     if (is_dir($src)) {
         if (!is_dir($dst))
@@ -272,7 +273,7 @@ foreach ($sourceDirs as $dir) {
 // STEP 4: Copy root files
 echo "🚀 Preparing root files...\n";
 foreach ($files as $file) {
-    $src = __DIR__ . "/$file";
+    $src = $projectRoot . "/$file";
     $dst = "$coreDir/$file";
     if (file_exists($src)) {
         copy($src, $dst);
@@ -284,12 +285,12 @@ foreach ($files as $file) {
 // // STEP 5: Copy public assets
 // echo "🌐 Copying public folder...\n";
 // if (!is_dir($publicDir)) mkdir($publicDir, 0755, true);
-// $totalFiles += robocopyCopy(__DIR__ . '/public', $publicDir);
+// $totalFiles += robocopyCopy($projectRoot . '/public', $publicDir);
 
 // STEP 6: Create index.php loader
 echo "⚙️  Creating index.php...\n";
 // Read Laravel version from composer.json
-$composerFile = file_get_contents(__DIR__ . '/composer.json');
+$composerFile = file_get_contents($projectRoot . '/composer.json');
 $composerData = json_decode($composerFile, true);
 
 // Look for 'laravel/framework' in the 'require' section
@@ -307,7 +308,7 @@ if ($laravelVersion !== 'Unknown' && version_compare($laravelVersion, '11.0.0', 
     define('LARAVEL_START', microtime(true));
     
     
-    \$corePath = __DIR__ . '/core';
+    \$corePath = $projectRoot . '/core';
     
     if (file_exists(\$maintenance = \$corePath . '/storage/framework/maintenance.php')) {
         require \$maintenance;
@@ -326,7 +327,7 @@ if ($laravelVersion !== 'Unknown' && version_compare($laravelVersion, '11.0.0', 
     
     define('LARAVEL_START', microtime(true));
     
-    \$corePath = __DIR__ . '/core';
+    \$corePath = $projectRoot . '/core';
     
     if (file_exists(\$maintenance = \$corePath . '/storage/framework/maintenance.php')) {
         require \$maintenance;
